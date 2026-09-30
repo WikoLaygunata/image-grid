@@ -40,3 +40,7 @@ npm run dev
 ```sh
 npm run build
 ```
+
+The production build is installable as a Progressive Web App. Its service
+worker caches the app shell and static assets for offline loading after the
+first visit. Imported photos and edits are not included in the offline cache.
