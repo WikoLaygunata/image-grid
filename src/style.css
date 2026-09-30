@@ -1,1 +1,218 @@
 @import "tailwindcss";
+
+/* ── Dark mode is driven by a class on <html>, toggled by useTheme() ───────── */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Local variable font (no network request, no FOUT) ─────────────────────── */
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/Plus_Jakarta_Sans/PlusJakartaSans-VariableFont_wght.ttf") format("truetype-variations");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/Plus_Jakarta_Sans/PlusJakartaSans-Italic-VariableFont_wght.ttf") format("truetype-variations");
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* ── Runtime theme values. Tailwind resolves var() chains at paint time, so
+      flipping these on .dark re-themes every utility without a rebuild. ────── */
+:root {
+  color-scheme: light;
+  --t-canvas: oklch(97.8% 0.003 250);
+  --t-surface: oklch(100% 0 0);
+  --t-surface-2: oklch(96.5% 0.004 250);
+  --t-surface-3: oklch(93.4% 0.006 250);
+  --t-line: oklch(90.5% 0.008 250);
+  --t-line-strong: oklch(84% 0.012 250);
+  --t-ink: oklch(21% 0.02 258);
+  --t-ink-2: oklch(44% 0.016 258);
+  --t-ink-3: oklch(60% 0.014 258);
+  --t-accent: oklch(55% 0.21 265);
+  --t-accent-ink: oklch(99% 0 0);
+  --t-accent-soft: oklch(94.5% 0.035 265);
+  --t-danger: oklch(56% 0.2 22);
+  --t-ring: oklch(55% 0.21 265 / 0.45);
+  --t-shadow: 220 25% 40%;
+  --t-shadow-a: 0.07;
+  /* Checkerboard for transparent export previews */
+  --t-checker: oklch(89% 0.005 250);
+}
+
+.dark {
+  color-scheme: dark;
+  --t-canvas: oklch(17.5% 0.012 265);
+  --t-surface: oklch(21.5% 0.014 265);
+  --t-surface-2: oklch(25% 0.016 265);
+  --t-surface-3: oklch(29.5% 0.018 265);
+  --t-line: oklch(30% 0.018 265);
+  --t-line-strong: oklch(38% 0.02 265);
+  --t-ink: oklch(97% 0.004 265);
+  --t-ink-2: oklch(73% 0.012 265);
+  --t-ink-3: oklch(58% 0.014 265);
+  --t-accent: oklch(66% 0.185 265);
+  --t-accent-ink: oklch(17% 0.02 265);
+  --t-accent-soft: oklch(30% 0.06 265);
+  --t-danger: oklch(66% 0.18 22);
+  --t-ring: oklch(66% 0.185 265 / 0.55);
+  --t-shadow: 260 60% 3%;
+  --t-shadow-a: 0.5;
+  --t-checker: oklch(26% 0.012 265);
+}
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+
+  --color-canvas: var(--t-canvas);
+  --color-surface: var(--t-surface);
+  --color-surface-2: var(--t-surface-2);
+  --color-surface-3: var(--t-surface-3);
+  --color-line: var(--t-line);
+  --color-line-strong: var(--t-line-strong);
+  --color-ink: var(--t-ink);
+  --color-ink-2: var(--t-ink-2);
+  --color-ink-3: var(--t-ink-3);
+  --color-accent: var(--t-accent);
+  --color-accent-ink: var(--t-accent-ink);
+  --color-accent-soft: var(--t-accent-soft);
+  --color-danger: var(--t-danger);
+
+  --radius-panel: 0.875rem;
+
+  --shadow-pop: 0 1px 2px hsl(var(--t-shadow) / calc(var(--t-shadow-a) * 0.7)),
+    0 8px 24px -6px hsl(var(--t-shadow) / var(--t-shadow-a));
+  --shadow-float: 0 1px 2px hsl(var(--t-shadow) / calc(var(--t-shadow-a) * 0.5)),
+    0 18px 50px -12px hsl(var(--t-shadow) / calc(var(--t-shadow-a) * 1.1));
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-pop-in: pop-in 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-fade-in: fade-in 0.15s ease-out;
+  --animate-rise: rise 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    background-color: var(--color-canvas);
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background-color: var(--color-canvas);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv11", "ss01";
+    font-variant-numeric: tabular-nums;
+    overscroll-behavior: none;
+  }
+
+  #app {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--t-ring);
+    outline-offset: 2px;
+  }
+
+  /* Only strip focus rings for pointer users; keyboard rings stay intact. */
+  button:focus:not(:focus-visible),
+  [role="button"]:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background: var(--color-accent-soft);
+    color: var(--color-ink);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.018em;
+    font-weight: 650;
+  }
+}
+
+@layer components {
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+  .scroll-thin::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background-clip: content-box;
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-color: var(--color-line-strong);
+  }
+  .scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Transparent-background checkerboard used behind the stage */
+  .checkerboard {
+    background-image: linear-gradient(45deg, var(--t-checker) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--t-checker) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--t-checker) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--t-checker) 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

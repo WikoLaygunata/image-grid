@@ -1,11 +1,28 @@
-<script setup></script>
+<script setup>
+/**
+ * Root shell. Guards against the browser's default drag-and-drop behaviour —
+ * without this, a photo dropped slightly off-target navigates away from the app
+ * and takes the user's unsaved work with it.
+ */
+import { onBeforeUnmount, onMounted } from 'vue';
+import ToastStack from '@/components/ui/ToastStack.vue';
+
+function swallow(event) {
+  event.preventDefault();
+}
+
+onMounted(() => {
+  window.addEventListener('dragover', swallow);
+  window.addEventListener('drop', swallow);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('dragover', swallow);
+  window.removeEventListener('drop', swallow);
+});
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <RouterView />
+  <ToastStack />
 </template>
-
-<style scoped></style>
