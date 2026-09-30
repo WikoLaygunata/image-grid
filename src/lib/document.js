@@ -67,12 +67,29 @@ export function createSlotState(assetId = null) {
   return { assetId, transform: { ...DEFAULT_TRANSFORM } };
 }
 
-export function createDocument({ ratioId = '1:1', templateId = 'single', slotCount = 1 } = {}) {
+/**
+ * Two authoring modes share one document:
+ *  - 'layout' — a grid template the user styles themselves (frame, background…)
+ *  - 'design' — finished artwork; the user only places and adjusts photos
+ */
+export const MODES = ['layout', 'design'];
+
+export function createDocument({
+  ratioId = '1:1',
+  templateId = 'single',
+  slotCount = 1,
+  mode = 'layout',
+  designId = null,
+} = {}) {
   return {
     version: SCHEMA_VERSION,
+    mode,
     ratioId,
     templateId,
+    designId,
     slots: Array.from({ length: slotCount }, () => createSlotState()),
+    /** Per-design-text overrides, keyed by element index: { text, dx, dy, hidden }. */
+    textEdits: {},
     frame: { ...DEFAULT_FRAME },
     filters: { ...DEFAULT_FILTERS },
     watermark: { ...DEFAULT_WATERMARK },
@@ -90,10 +107,15 @@ export const pct = (value, reference) => (Number(value || 0) / 100) * reference;
 export function serialiseDocument(doc) {
   return {
     version: SCHEMA_VERSION,
+    mode: doc.mode ?? 'layout',
     ratioId: doc.ratioId,
     templateId: doc.templateId,
+    designId: doc.designId ?? null,
     slotCount: doc.slots.length,
     transforms: doc.slots.map((s) => ({ ...s.transform })),
+    // Deep clone via JSON: textEdits is a plain map of small plain objects, and
+    // structuredClone throws DataCloneError on Vue's reactive proxy.
+    textEdits: JSON.parse(JSON.stringify(doc.textEdits ?? {})),
     frame: { ...doc.frame },
     filters: { ...doc.filters },
     watermark: { ...doc.watermark },
@@ -107,12 +129,16 @@ export function deserialiseDocument(saved) {
 
   return {
     version: SCHEMA_VERSION,
+    mode: MODES.includes(saved?.mode) ? saved.mode : 'layout',
     ratioId: saved?.ratioId ?? '1:1',
     templateId: saved?.templateId ?? 'single',
+    designId: saved?.designId ?? null,
     slots: Array.from({ length: slotCount }, (_, i) => ({
       assetId: null,
       transform: { ...DEFAULT_TRANSFORM, ...(transforms[i] ?? {}) },
     })),
+    textEdits:
+      saved?.textEdits && typeof saved.textEdits === 'object' ? { ...saved.textEdits } : {},
     frame: { ...DEFAULT_FRAME, ...(saved?.frame ?? {}) },
     filters: { ...DEFAULT_FILTERS, ...(saved?.filters ?? {}) },
     watermark: { ...DEFAULT_WATERMARK, ...(saved?.watermark ?? {}) },

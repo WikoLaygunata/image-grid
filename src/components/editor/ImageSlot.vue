@@ -31,7 +31,8 @@ import IconButton from '@/components/ui/IconButton.vue';
 const props = defineProps({
   index: { type: Number, required: true },
   rect: { type: Object, required: true }, // px, in stage space
-  radius: { type: Number, required: true }, // px
+  /** CSS border-radius for the slot's clip shape; '50%' yields a circle. */
+  radiusCss: { type: String, default: '0px' },
   asset: { type: Object, default: null },
   transform: { type: Object, required: true },
   filterCss: { type: String, default: 'none' },
@@ -86,7 +87,7 @@ const slotStyle = computed(() => ({
   top: `${props.rect.y}px`,
   width: `${props.rect.w}px`,
   height: `${props.rect.h}px`,
-  borderRadius: `${props.radius}px`,
+  borderRadius: props.radiusCss,
 }));
 
 const imageStyle = computed(() => {
@@ -109,7 +110,7 @@ const borderStyle = computed(() => {
   if (!props.border || props.border.width <= 0) return null;
   return {
     boxShadow: `inset 0 0 0 ${props.border.width}px ${props.border.color}`,
-    borderRadius: `${props.radius}px`,
+    borderRadius: props.radiusCss,
   };
 });
 
@@ -363,7 +364,7 @@ function onDrop(event) {
     <div
       v-if="chrome && selected"
       class="pointer-events-none absolute inset-0 ring-2 ring-accent ring-inset"
-      :style="{ borderRadius: `${radius}px` }"
+      :style="{ borderRadius: radiusCss }"
       aria-hidden="true"
     />
 

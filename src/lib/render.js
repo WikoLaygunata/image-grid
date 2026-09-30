@@ -25,6 +25,13 @@ import { filterString, paintVignette, supportsCanvasFilter } from './filters.js'
 import { decodeForRender, canvasToBlob } from './imageLoader.js';
 import { cssFont, ensureFontLoaded } from './fonts.js';
 import { pct, DEFAULT_FRAME, DEFAULT_WATERMARK } from './document.js';
+import {
+  collectTextFonts,
+  paintElements,
+  resolveElements,
+  shapePath,
+  textFontSize,
+} from './elements.js';
 
 /** Pre-downsampling kicks in past this reduction factor to avoid aliasing. */
 const PRESCALE_THRESHOLD = 2.4;
@@ -79,7 +86,7 @@ function prescale(source, srcW, srcH, targetW, targetH) {
  * place the image using the shared transform maths.
  */
 function drawSlotImage(ctx, drawable, rect, transform, opts) {
-  const { radius, filterCss, vignette, useFilter } = opts;
+  const { shape, radius, filterCss, vignette, useFilter } = opts;
 
   const placement = resolvePlacement(
     drawable.width,
@@ -90,7 +97,7 @@ function drawSlotImage(ctx, drawable, rect, transform, opts) {
   );
 
   ctx.save();
-  roundRectPath(ctx, rect.x, rect.y, rect.w, rect.h, radius);
+  shapePath(ctx, rect, shape, radius);
   ctx.clip();
 
   const scaled = prescale(
@@ -119,7 +126,7 @@ function drawSlotImage(ctx, drawable, rect, transform, opts) {
 
   if (vignette > 0) {
     ctx.save();
-    roundRectPath(ctx, rect.x, rect.y, rect.w, rect.h, radius);
+    shapePath(ctx, rect, shape, radius);
     ctx.clip();
     paintVignette(ctx, rect, vignette);
     ctx.restore();
@@ -302,6 +309,20 @@ async function paintWatermark(ctx, W, H, watermark, logoDrawable) {
 }
 
 /**
+ * Canvas draws with whatever fonts happen to be resident, silently substituting
+ * anything still loading. A design's typography is the design, so every face it
+ * uses is awaited before the first glyph is painted.
+ */
+async function preloadDesignFonts(elements, W) {
+  const faces = collectTextFonts(elements);
+  await Promise.all(
+    faces.map((face) =>
+      ensureFontLoaded(face.weight, textFontSize({ size: face.size }, W), face.font, face.italic),
+    ),
+  );
+}
+
+/**
  * Render a scene to a canvas.
  *
  * @param {object} scene
@@ -317,6 +338,7 @@ async function paintWatermark(ctx, W, H, watermark, logoDrawable) {
  * @param {number} options.pixelWidth target width in device pixels
  */
 export async function renderScene(scene, { pixelWidth } = {}) {
+  const design = scene.design ?? null;
   const frame = { ...DEFAULT_FRAME, ...scene.frame };
   const base = baseCanvasSize(scene.ratioId);
   const targetW = Math.max(16, Math.round(pixelWidth || base.width));
@@ -329,31 +351,53 @@ export async function renderScene(scene, { pixelWidth } = {}) {
   const canvas = makeCanvas(W, H);
   const ctx = prepContext(canvas);
 
-  const rects = resolveSlotRects(scene.slotRects, W, H, {
-    padding: pct(frame.padding, short),
-    gap: pct(frame.gap, short),
-  });
+  /*
+   * In design mode the artwork owns the composition: slot rects come straight
+   * from the design's normalised coordinates, and the document's padding, gap,
+   * radius, border and background settings are all bypassed. Those controls are
+   * hidden in the UI for the same reason — the design is not meant to be edited.
+   */
+  const rects = design
+    ? design.slots.map((s) => ({ x: s.x * W, y: s.y * H, w: s.w * W, h: s.h * H }))
+    : resolveSlotRects(scene.slotRects, W, H, {
+        padding: pct(frame.padding, short),
+        gap: pct(frame.gap, short),
+      });
+
+  // Both modes express corner radius as a percentage of the slot's short edge,
+  // so one shape spec per slot serves them equally.
+  const shapes = design
+    ? design.slots.map((s) => ({ shape: s.shape ?? 'rect', radius: s.radius ?? 0 }))
+    : rects.map(() => ({ shape: 'rect', radius: frame.radius }));
 
   const filled = scene.slots
     .map((slot, index) => ({ slot, index }))
     .filter(({ slot }) => slot.assetId && scene.getAsset(slot.assetId));
 
-  const blurAsset =
-    frame.bgMode === 'blur' && filled.length
-      ? scene.getAsset(filled[0].slot.assetId)
-      : null;
+  // Resolve the design's artwork against the document's text edits once, up
+  // front, so the back and front passes paint a consistent set.
+  const designElements = design ? resolveElements(design.elements, scene.textEdits) : null;
 
-  await paintBackground(ctx, W, H, frame, blurAsset);
+  if (design) {
+    await preloadDesignFonts(designElements, W);
+    paintElements(ctx, designElements, W, H, 'back');
+  } else {
+    const blurAsset =
+      frame.bgMode === 'blur' && filled.length
+        ? scene.getAsset(filled[0].slot.assetId)
+        : null;
+    await paintBackground(ctx, W, H, frame, blurAsset);
+  }
 
   // Empty slots read as intentional recesses rather than accidental holes.
-  if (frame.bgMode !== 'transparent') {
+  if (design || frame.bgMode !== 'transparent') {
     scene.slots.forEach((slot, index) => {
       if (slot.assetId && scene.getAsset(slot.assetId)) return;
       const rect = rects[index];
       if (!rect) return;
       ctx.save();
-      ctx.fillStyle = 'rgba(0,0,0,0.055)';
-      roundRectPath(ctx, rect.x, rect.y, rect.w, rect.h, cornerRadius(rect, frame.radius));
+      ctx.fillStyle = design ? 'rgba(125,135,150,0.28)' : 'rgba(0,0,0,0.055)';
+      shapePath(ctx, rect, shapes[index].shape, shapes[index].radius);
       ctx.fill();
       ctx.restore();
     });
@@ -379,7 +423,8 @@ export async function renderScene(scene, { pixelWidth } = {}) {
         const rect = rects[index];
         if (!rect) continue;
         drawSlotImage(ctx, drawable, rect, slot.transform, {
-          radius: cornerRadius(rect, frame.radius),
+          shape: shapes[index].shape,
+          radius: shapes[index].radius,
           filterCss,
           vignette,
           useFilter,
@@ -392,7 +437,8 @@ export async function renderScene(scene, { pixelWidth } = {}) {
     }
   }
 
-  if (frame.borderWidth > 0) {
+  // Photo outlines are a layout-mode styling control; designs draw their own.
+  if (!design && frame.borderWidth > 0) {
     const lineWidth = Math.max(1, pct(frame.borderWidth, short));
     ctx.save();
     ctx.strokeStyle = frame.borderColor;
@@ -411,6 +457,9 @@ export async function renderScene(scene, { pixelWidth } = {}) {
     });
     ctx.restore();
   }
+
+  // Artwork that sits over the photos: scrims, headlines, badges, frames.
+  if (design) paintElements(ctx, designElements, W, H, 'front');
 
   let logoDrawable = null;
   try {

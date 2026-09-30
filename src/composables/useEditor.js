@@ -16,9 +16,11 @@
 import { computed, reactive, ref, shallowReactive, watch } from 'vue';
 
 import { getTemplate, suggestTemplate, TEMPLATES } from '@/data/templates.js';
+import { getDesign } from '@/data/designs.js';
 import {
   DEFAULT_FRAME,
   DEFAULT_WATERMARK,
+  MODES,
   createDocument,
   createSlotState,
   deserialiseDocument,
@@ -81,8 +83,11 @@ function applySnapshot(json) {
   const parsed = JSON.parse(json);
   const restored = deserialiseDocument(parsed);
 
+  doc.mode = restored.mode;
   doc.ratioId = restored.ratioId;
   doc.templateId = restored.templateId;
+  doc.designId = restored.designId;
+  doc.textEdits = restored.textEdits ?? {};
   doc.frame = restored.frame;
   doc.filters = restored.filters;
   doc.watermark = restored.watermark;
@@ -123,7 +128,27 @@ function endGesture() {
 
 // ── Derived state ───────────────────────────────────────────────────────────
 
-const template = computed(() => getTemplate(doc.templateId));
+const design = computed(() => (doc.mode === 'design' ? getDesign(doc.designId) : null));
+const isDesignMode = computed(() => !!design.value);
+
+/**
+ * The active slot definition, whichever mode we are in. Components that only
+ * care about "how many holes and where" can read this and stay mode-agnostic.
+ */
+const template = computed(() => {
+  if (design.value) {
+    return {
+      id: design.value.id,
+      name: design.value.name,
+      count: design.value.slots.length,
+      slots: design.value.slots,
+      tags: [design.value.category],
+      featured: true,
+    };
+  }
+  return getTemplate(doc.templateId);
+});
+
 const assetList = computed(() => Object.values(assets));
 const usedAssetIds = computed(() => new Set(doc.slots.map((s) => s.assetId).filter(Boolean)));
 const unusedAssets = computed(() => assetList.value.filter((a) => !usedAssetIds.value.has(a.id)));
@@ -160,25 +185,125 @@ function cycleRatio(direction = 1) {
  * them back into the tray. Photos that fall off the end of a smaller template
  * return to the tray rather than being dropped.
  */
-function setTemplate(templateId) {
-  const next = getTemplate(templateId);
-  if (!next || doc.templateId === templateId) return;
-  commit();
-
-  const carried = doc.slots.map((s) => ({ assetId: s.assetId, transform: s.transform }));
+/**
+ * Rebuild the slot array at a new size, carrying photos over by position and
+ * topping up from the tray. Photos that no longer fit return to the tray rather
+ * than being discarded.
+ */
+function retargetSlots(count) {
   const pool = [
-    ...carried.filter((s) => s.assetId),
+    ...doc.slots.filter((s) => s.assetId).map((s) => ({ assetId: s.assetId, transform: s.transform })),
     ...unusedAssets.value.map((a) => ({ assetId: a.id, transform: { ...DEFAULT_TRANSFORM } })),
   ];
 
-  doc.templateId = templateId;
-  doc.slots = Array.from({ length: next.count }, (_, i) => {
+  doc.slots = Array.from({ length: count }, (_, i) => {
     const source = pool[i];
     return source
       ? { assetId: source.assetId, transform: { ...source.transform } }
       : createSlotState();
   });
   selectedSlot.value = clamp(selectedSlot.value, 0, doc.slots.length - 1);
+}
+
+function setTemplate(templateId) {
+  const next = getTemplate(templateId);
+  if (!next) return;
+  if (doc.mode === 'layout' && doc.templateId === templateId) return;
+  commit();
+
+  doc.mode = 'layout';
+  doc.designId = null;
+  doc.templateId = templateId;
+  retargetSlots(next.count);
+}
+
+/**
+ * Switch to a ready-made design.
+ *
+ * The design's native ratio is adopted, because its typography and spacing were
+ * composed for that shape. The ratio control stays live afterwards — elements
+ * are normalised so they reflow — but the default is the shape it was drawn for.
+ */
+function setDesign(designId) {
+  const next = getDesign(designId);
+  if (!next || (doc.mode === 'design' && doc.designId === designId)) return;
+  commit();
+
+  doc.mode = 'design';
+  doc.designId = designId;
+  doc.ratioId = next.ratioId;
+  // Edits are keyed by element index, which is meaningless across designs.
+  doc.textEdits = {};
+  retargetSlots(next.slots.length);
+}
+
+// ── Design text editing ─────────────────────────────────────────────────────
+//
+// The design stays immutable; edits live in doc.textEdits, keyed by the text
+// element's index in the design. Only content, position and visibility can
+// change — never the font, colour or size, which are the design's identity.
+
+function ensureEdit(index) {
+  if (!doc.textEdits[index]) doc.textEdits[index] = {};
+  return doc.textEdits[index];
+}
+
+/** Drop an override back to the design's original if nothing distinguishes it. */
+function pruneEdit(index) {
+  const edit = doc.textEdits[index];
+  if (!edit) return;
+  const untouched =
+    (edit.text === undefined || edit.text === null) &&
+    !edit.hidden &&
+    !(edit.dx || edit.dy);
+  if (untouched) delete doc.textEdits[index];
+}
+
+function setTextContent(index, text) {
+  commit();
+  ensureEdit(index).text = text;
+  pruneEdit(index);
+}
+
+/** Move a text element by a delta in canvas fractions (matches slot panning). */
+function moveText(index, dx, dy) {
+  const edit = ensureEdit(index);
+  edit.dx = clamp((edit.dx ?? 0) + dx, -1, 1);
+  edit.dy = clamp((edit.dy ?? 0) + dy, -1, 1);
+}
+
+function hideText(index) {
+  commit();
+  ensureEdit(index).hidden = true;
+}
+
+/** Unhide a run, preserving any content or position edit it still carries. */
+function restoreText(index) {
+  const edit = doc.textEdits[index];
+  if (!edit?.hidden) return;
+  commit();
+  delete edit.hidden;
+  pruneEdit(index);
+}
+
+/** Reset only the position, keeping any content edit. */
+function resetTextPosition(index) {
+  commit();
+  const edit = doc.textEdits[index];
+  if (!edit) return;
+  delete edit.dx;
+  delete edit.dy;
+  pruneEdit(index);
+}
+
+/** Leave design mode and go back to the editable grid layouts. */
+function exitDesign() {
+  if (doc.mode !== 'design') return;
+  commit();
+  doc.mode = 'layout';
+  doc.designId = null;
+  doc.textEdits = {};
+  retargetSlots(getTemplate(doc.templateId).count);
 }
 
 function setFrame(patch) {
@@ -381,8 +506,13 @@ async function importFiles(files, { targetSlot = null, autoTemplate = true } = {
       selectedSlot.value = targetSlot;
       placeSequentially(rest, targetSlot + 1);
     } else {
+      // Never re-template in design mode: the user picked that artwork, and its
+      // slot count is part of the design rather than something to optimise away.
       const shouldRetemplate =
-        autoTemplate && isEmpty.value && loaded.length !== doc.slots.length;
+        autoTemplate &&
+        !isDesignMode.value &&
+        isEmpty.value &&
+        loaded.length !== doc.slots.length;
 
       if (shouldRetemplate) {
         const suggestion = suggestTemplate(loaded.length);
@@ -475,11 +605,14 @@ function resetDocument({ keepAssets = false } = {}) {
     ratioId: doc.ratioId,
     templateId: doc.templateId,
     slotCount: template.value.count,
+    mode: doc.mode,
+    designId: doc.designId,
   });
   doc.frame = fresh.frame;
   doc.filters = fresh.filters;
   doc.watermark = { ...fresh.watermark, logoId: doc.watermark.logoId };
   doc.slots = fresh.slots;
+  doc.textEdits = {};
   selectedSlot.value = 0;
 }
 
@@ -487,8 +620,13 @@ function resetDocument({ keepAssets = false } = {}) {
 function applySavedDocument(saved) {
   commit();
   const restored = deserialiseDocument(saved);
+  // A design that has since been removed from the catalogue falls back to the
+  // grid layouts rather than rendering an empty document.
+  doc.mode = restored.mode === 'design' && getDesign(restored.designId) ? 'design' : 'layout';
   doc.ratioId = restored.ratioId;
   doc.templateId = restored.templateId;
+  doc.designId = doc.mode === 'design' ? restored.designId : null;
+  doc.textEdits = doc.mode === 'design' ? restored.textEdits ?? {} : {};
   doc.frame = restored.frame;
   doc.filters = restored.filters;
   doc.watermark = restored.watermark;
@@ -510,6 +648,16 @@ function buildScene(logoAsset = null) {
     ratioId: doc.ratioId,
     slotRects: template.value.slots.map((s) => ({ ...s })),
     slots: doc.slots.map((s) => ({ assetId: s.assetId, transform: { ...s.transform } })),
+    // Present only in design mode; its presence is what switches the renderer
+    // from "styled grid" to "fixed artwork".
+    design: design.value
+      ? {
+          id: design.value.id,
+          slots: design.value.slots.map((s) => ({ ...s })),
+          elements: design.value.elements,
+        }
+      : null,
+    textEdits: { ...(doc.textEdits ?? {}) },
     frame: { ...doc.frame },
     filters: { ...doc.filters },
     watermark: { ...doc.watermark },
@@ -531,6 +679,17 @@ function loadPrefs() {
       doc.templateId = saved.templateId;
       doc.slots = Array.from({ length: getTemplate(saved.templateId).count }, () => createSlotState());
     }
+
+    // Reopen on whichever mode the user left, provided the design still exists.
+    const savedDesign = getDesign(saved.designId);
+    if (MODES.includes(saved.mode) && saved.mode === 'design' && savedDesign) {
+      doc.mode = 'design';
+      doc.designId = savedDesign.id;
+      doc.ratioId = savedDesign.ratioId;
+      doc.slots = Array.from({ length: savedDesign.slots.length }, () => createSlotState());
+      if (saved.textEdits && typeof saved.textEdits === 'object') doc.textEdits = { ...saved.textEdits };
+    }
+
     if (saved.frame) doc.frame = { ...DEFAULT_FRAME, ...saved.frame };
     if (saved.filters) doc.filters = { ...DEFAULT_FILTERS, ...saved.filters };
     if (saved.watermark) doc.watermark = { ...DEFAULT_WATERMARK, ...saved.watermark };
@@ -547,8 +706,11 @@ function schedulePrefsSave() {
       localStorage.setItem(
         PREFS_KEY,
         JSON.stringify({
+          mode: doc.mode,
           ratioId: doc.ratioId,
           templateId: doc.templateId,
+          designId: doc.designId,
+          textEdits: doc.textEdits,
           frame: doc.frame,
           filters: doc.filters,
           watermark: doc.watermark,
@@ -566,7 +728,7 @@ function init() {
   initialised = true;
   loadPrefs();
   watch(
-    () => [doc.ratioId, doc.templateId, doc.frame, doc.filters, doc.watermark],
+    () => [doc.mode, doc.ratioId, doc.templateId, doc.designId, doc.textEdits, doc.frame, doc.filters, doc.watermark],
     schedulePrefsSave,
     { deep: true },
   );
@@ -584,6 +746,8 @@ export function useEditor() {
 
     // derived
     template,
+    design,
+    isDesignMode,
     assetList,
     unusedAssets,
     usedAssetIds,
@@ -602,6 +766,13 @@ export function useEditor() {
     setRatio,
     cycleRatio,
     setTemplate,
+    setDesign,
+    exitDesign,
+    setTextContent,
+    moveText,
+    hideText,
+    restoreText,
+    resetTextPosition,
     setFrame,
     setFilters,
     applyFilterPreset,

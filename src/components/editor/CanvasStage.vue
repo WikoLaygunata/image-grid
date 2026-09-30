@@ -10,7 +10,7 @@
  * what keeps interaction smooth; the canvas only appears at export time.
  */
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
-import { ImagePlus, Images } from '@lucide/vue';
+import { ImagePlus, Images, X } from '@lucide/vue';
 
 import {
   cornerRadius,
@@ -18,6 +18,7 @@ import {
   ratioValue,
   resolveSlotRects,
 } from '@/lib/geometry.js';
+import { shapeCss } from '@/lib/elements.js';
 import { filterString } from '@/lib/filters.js';
 import { pct } from '@/lib/document.js';
 import { filesFromDataTransfer, isSupportedImage } from '@/lib/imageLoader.js';
@@ -25,6 +26,8 @@ import { useEditor } from '@/composables/useEditor.js';
 import { useLogoVault } from '@/composables/useLogoVault.js';
 import { pickFiles } from '@/lib/filePicker.js';
 
+import DesignLayer from './DesignLayer.vue';
+import DesignTextOverlay from './DesignTextOverlay.vue';
 import ImageSlot from './ImageSlot.vue';
 import WatermarkOverlay from './WatermarkOverlay.vue';
 import AppButton from '@/components/ui/AppButton.vue';
@@ -32,6 +35,7 @@ import AppButton from '@/components/ui/AppButton.vue';
 const {
   doc,
   template,
+  design,
   selectedSlot,
   slotAsset,
   isEmpty,
@@ -43,6 +47,9 @@ const {
   clearSlot,
   swapSlots,
   assignAsset,
+  moveText,
+  setTextContent,
+  hideText,
   beginGesture,
   endGesture,
 } = useEditor();
@@ -53,8 +60,27 @@ const viewport = ref(null);
 const box = shallowRef({ width: 0, height: 0 });
 const draggingFiles = ref(false);
 const swapSource = ref(-1);
+const selectedText = ref(-1);
+const dropHintHidden = ref(readDropHintHidden());
 let observer;
 let dragDepth = 0;
+
+function readDropHintHidden() {
+  try {
+    return localStorage.getItem('ig:hide-drop-hint:v1') === '1';
+  } catch {
+    return false;
+  }
+}
+
+function hideDropHint() {
+  dropHintHidden.value = true;
+  try {
+    localStorage.setItem('ig:hide-drop-hint:v1', '1');
+  } catch {
+    /* The hint is hidden for this session even when storage is unavailable. */
+  }
+}
 
 onMounted(() => {
   observer = new ResizeObserver((entries) => {
@@ -75,17 +101,42 @@ const stage = computed(() =>
 
 const shortEdge = computed(() => Math.min(stage.value.width, stage.value.height));
 
+/**
+ * Slot rects. In design mode they come verbatim from the artwork; otherwise the
+ * document's padding and gap shape them. Mirrors the branch in renderScene.
+ */
 const rects = computed(() => {
   if (stage.value.width < 1) return [];
+  if (design.value) {
+    return design.value.slots.map((s) => ({
+      x: s.x * stage.value.width,
+      y: s.y * stage.value.height,
+      w: s.w * stage.value.width,
+      h: s.h * stage.value.height,
+    }));
+  }
   return resolveSlotRects(template.value.slots, stage.value.width, stage.value.height, {
     padding: pct(doc.frame.padding, shortEdge.value),
     gap: pct(doc.frame.gap, shortEdge.value),
   });
 });
 
+/** Clip shape per slot, as a CSS border-radius string. */
+const radii = computed(() =>
+  rects.value.map((rect, i) => {
+    if (design.value) {
+      const slot = design.value.slots[i];
+      return shapeCss(slot?.shape, slot?.radius ?? 0, rect);
+    }
+    return `${cornerRadius(rect, doc.frame.radius)}px`;
+  }),
+);
+
 const filterCss = computed(() => filterString(doc.filters, 1));
 
+// Designs draw their own outlines; the frame control does not apply to them.
 const border = computed(() => {
+  if (design.value) return null;
   const width = pct(doc.frame.borderWidth, shortEdge.value);
   return width > 0.3 ? { width, color: doc.frame.borderColor } : null;
 });
@@ -95,6 +146,8 @@ const logo = computed(() => getLogo(doc.watermark.logoId));
 /** Background layer. Mirrors `paintBackground` in the renderer. */
 const backgroundStyle = computed(() => {
   const frame = doc.frame;
+  // A design supplies its own background plate as a back-layer element.
+  if (design.value) return { background: 'transparent' };
   if (frame.bgMode === 'transparent') return { background: 'transparent' };
   if (frame.bgMode === 'gradient') {
     return {
@@ -106,7 +159,7 @@ const backgroundStyle = computed(() => {
 
 /** First placed photo doubles as the blurred backdrop, as in the exporter. */
 const backdropAsset = computed(() => {
-  if (doc.frame.bgMode !== 'blur') return null;
+  if (design.value || doc.frame.bgMode !== 'blur') return null;
   const slot = doc.slots.find((s) => s.assetId);
   return slot ? slotAsset(doc.slots.indexOf(slot)) : null;
 });
@@ -202,11 +255,22 @@ defineExpose({ stage });
     <div
       v-if="stage.width > 0"
       class="relative shrink-0 overflow-hidden rounded-[3px] shadow-float transition-[width,height] duration-200 ease-out-quint"
-      :class="doc.frame.bgMode === 'transparent' ? 'checkerboard' : ''"
+      :class="!design && doc.frame.bgMode === 'transparent' ? 'checkerboard' : ''"
       :style="{ width: `${stage.width}px`, height: `${stage.height}px` }"
     >
       <!-- Background -->
       <div class="absolute inset-0" :style="backgroundStyle" aria-hidden="true" />
+
+      <!-- Design artwork behind the photos (shapes only; text is on the overlay) -->
+      <DesignLayer
+        v-if="design"
+        :elements="design.elements"
+        :text-edits="doc.textEdits"
+        layer="back"
+        skip-text
+        :width="stage.width"
+        :height="stage.height"
+      />
 
       <div
         v-if="backdropAsset"
@@ -232,7 +296,7 @@ defineExpose({ stage });
         :key="index"
         :index="index"
         :rect="rects[index] ?? { x: 0, y: 0, w: 0, h: 0 }"
-        :radius="cornerRadius(rects[index] ?? { w: 0, h: 0 }, doc.frame.radius)"
+        :radius-css="radii[index] ?? '0px'"
         :asset="slotAsset(index)"
         :transform="slot.transform"
         :filter-css="filterCss"
@@ -255,6 +319,33 @@ defineExpose({ stage });
         @swap-start="swapSource = $event"
         @swap-end="swapSource = -1"
         @drop-files="onSlotDropFiles"
+      />
+
+      <!-- Design artwork over the photos: scrims, badges, frames (no text) -->
+      <DesignLayer
+        v-if="design"
+        :elements="design.elements"
+        :text-edits="doc.textEdits"
+        layer="front"
+        skip-text
+        :width="stage.width"
+        :height="stage.height"
+      />
+
+      <!-- Editable text sits above everything so any run can be grabbed -->
+      <DesignTextOverlay
+        v-if="design"
+        :elements="design.elements"
+        :text-edits="doc.textEdits"
+        :width="stage.width"
+        :height="stage.height"
+        :selected="selectedText"
+        @select="selectedText = $event"
+        @move="moveText($event.index, $event.dx, $event.dy)"
+        @commit-text="setTextContent($event.index, $event.text)"
+        @remove="hideText"
+        @gesture-start="beginGesture"
+        @gesture-end="endGesture"
       />
 
       <WatermarkOverlay
@@ -292,11 +383,11 @@ defineExpose({ stage });
       leave-to-class="opacity-0"
     >
       <div
-        v-if="isEmpty && !draggingFiles"
-        class="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-4 sm:bottom-5"
+        v-if="isEmpty && !draggingFiles && !dropHintHidden"
+        class="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-4 sm:bottom-5 z-100"
       >
         <div
-          class="pointer-events-auto flex items-center gap-2.5 rounded-full border border-line bg-surface/92 py-1.5 pr-1.5 pl-4 shadow-float backdrop-blur-md"
+          class="pointer-events-auto flex items-center gap-1.5 rounded-full border border-line bg-surface/92 py-1.5 pr-1.5 pl-4 shadow-float backdrop-blur-md"
         >
           <p class="text-[12px] text-ink-2">
             <span class="font-semibold text-ink">Drop photos</span>
@@ -306,6 +397,15 @@ defineExpose({ stage });
             <template #icon><ImagePlus :size="13" /></template>
             Browse
           </AppButton>
+          <button
+            type="button"
+            class="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
+            aria-label="Hide drop photos hint"
+            title="Hide hint"
+            @click="hideDropHint"
+          >
+            <X :size="14" />
+          </button>
         </div>
       </div>
     </Transition>
