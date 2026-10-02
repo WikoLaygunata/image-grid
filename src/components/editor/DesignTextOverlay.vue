@@ -28,6 +28,14 @@ const props = defineProps({
   width: { type: Number, required: true },
   height: { type: Number, required: true },
   selected: { type: Number, default: -1 },
+  /**
+   * Which artwork layer's text this instance owns. The canvas export paints a
+   * run on its authored layer, so the preview mounts one overlay behind the
+   * photos (back) and one in front, and each renders only its own runs. Without
+   * this split a `back` run — e.g. the giant decorative quote mark — would float
+   * over the photo in the editor while sitting behind it in the export.
+   */
+  layer: { type: String, default: null }, // 'back' | 'front' | null (all)
 });
 
 const emit = defineEmits([
@@ -50,7 +58,9 @@ function setInputEl(node) {
 
 /** Resolved, visible text runs with their editIndex intact. */
 const texts = computed(() =>
-  resolveElements(props.elements, props.textEdits).filter((el) => el.type === 'text'),
+  resolveElements(props.elements, props.textEdits)
+    .filter((el) => el.type === 'text')
+    .filter((el) => props.layer == null || (el.layer ?? 'back') === props.layer),
 );
 
 // ── Dragging ────────────────────────────────────────────────────────────────
@@ -149,8 +159,13 @@ function editorStyle(el) {
 
 <template>
   <!-- The overlay spans the stage but must not intercept clicks meant for the
-       photo slots beneath it; only the text runs themselves take pointer events. -->
-  <div class="pointer-events-none absolute inset-0 z-40">
+       photo slots beneath it; only the text runs themselves take pointer events.
+       `back` text sits beneath the photo slots (which use z-10/20) to match the
+       export's layer order; everything else sits above them. -->
+  <div
+    class="pointer-events-none absolute inset-0"
+    :class="layer === 'back' ? 'z-0' : 'z-40'"
+  >
     <template v-for="el in texts" :key="el.editIndex">
       <!-- Editing: a textarea sitting exactly where the text is -->
       <textarea

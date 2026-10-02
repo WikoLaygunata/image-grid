@@ -110,6 +110,13 @@ const WIDTHS = { sm: 'sm:max-w-sm', md: 'sm:max-w-lg', lg: 'sm:max-w-3xl' };
   justify-content: center;
   max-height: 92dvh;
 }
+
+/* The panel inside uses `h-full`, which only resolves against a definite
+   height. Without this the scroll region never gets a bounded height and the
+   content overflows the sheet instead of scrolling inside it. */
+.ig-dialog--right {
+  height: 92dvh;
+}
 .ig-dialog[open] {
   animation: sheet-up 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }

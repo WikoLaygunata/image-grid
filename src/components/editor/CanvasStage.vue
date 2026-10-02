@@ -272,6 +272,24 @@ defineExpose({ stage });
         :height="stage.height"
       />
 
+      <!-- Editable text authored on the BACK layer: sits behind the photos, as
+           it does in the export, but stays interactive. -->
+      <DesignTextOverlay
+        v-if="design"
+        :elements="design.elements"
+        :text-edits="doc.textEdits"
+        :width="stage.width"
+        :height="stage.height"
+        :selected="selectedText"
+        layer="back"
+        @select="selectedText = $event"
+        @move="moveText($event.index, $event.dx, $event.dy)"
+        @commit-text="setTextContent($event.index, $event.text)"
+        @remove="hideText"
+        @gesture-start="beginGesture"
+        @gesture-end="endGesture"
+      />
+
       <div
         v-if="backdropAsset"
         class="absolute inset-0 overflow-hidden"
@@ -332,7 +350,7 @@ defineExpose({ stage });
         :height="stage.height"
       />
 
-      <!-- Editable text sits above everything so any run can be grabbed -->
+      <!-- Editable text authored on the FRONT layer sits above the photos -->
       <DesignTextOverlay
         v-if="design"
         :elements="design.elements"
@@ -340,6 +358,7 @@ defineExpose({ stage });
         :width="stage.width"
         :height="stage.height"
         :selected="selectedText"
+        layer="front"
         @select="selectedText = $event"
         @move="moveText($event.index, $event.dx, $event.dy)"
         @commit-text="setTextContent($event.index, $event.text)"

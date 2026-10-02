@@ -35,7 +35,16 @@ const visible = computed(() =>
 </script>
 
 <template>
-  <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+  <!-- Photo slots carry an explicit z-index (z-10/20), and a positive z-index
+       always wins over z-auto regardless of DOM order. So the front artwork
+       needs its own stacking level to sit above the photos — matching the
+       export, where the front pass is painted after the images. Text overlays
+       live above this at z-40. -->
+  <div
+    class="pointer-events-none absolute inset-0 overflow-hidden"
+    :class="layer === 'front' ? 'z-30' : 'z-0'"
+    aria-hidden="true"
+  >
     <template v-for="{ el, index } in visible" :key="index">
       <span
         v-if="el.type === 'text'"

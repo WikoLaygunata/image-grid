@@ -95,7 +95,7 @@ function hexWithAlpha(hex, alpha) {
 <template>
   <div
     v-if="watermark.enabled"
-    class="pointer-events-none absolute inset-0 z-30 overflow-hidden"
+    class="pointer-events-none absolute inset-0 z-50 overflow-hidden"
     aria-hidden="true"
   >
     <div :style="{ ...positionStyle, opacity: watermark.opacity / 100 }">
