@@ -1354,6 +1354,268 @@ const RAW_DESIGNS = [
       },
     ],
   },
+
+  // ── Running ───────────────────────────────────────────────────────────────
+  //
+  // Activity-share cards. The shape is borrowed from the fitness trackers
+  // everyone already reads at a glance: one headline number with its unit, then
+  // a row of secondary stats under a hairline. Placeholder figures are filled in
+  // as text, so a runner edits them in place like any other design copy.
+  {
+    id: 'run-recap',
+    name: 'Run Recap',
+    category: 'Running',
+    ratioId: '9:16',
+    blurb: 'Activity story with distance, pace and time',
+    slots: [{ x: 0, y: 0, w: 1, h: 1, radius: 0 }],
+    elements: [
+      bg('#0A0A0A'),
+      scrim(0, 0.24, 0.55, 'down'),
+      scrim(0.46, 0.54, 0.94, 'up'),
+      { type: 'rect', layer: 'front', x: 0.08, y: 0.055, w: 0.17, h: 0.034, fill: '#FC4C02', radius: 100 },
+      {
+        type: 'text', layer: 'front', x: 0.08, y: 0.0625, w: 0.17,
+        text: 'Run', size: 1.9, weight: 800, fill: '#FFFFFF',
+        align: 'center', uppercase: true, letterSpacing: 8,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.08, y: 0.54, w: 0.84,
+        text: 'Morning Run', size: 4.6, weight: 700, fill: '#FFFFFF', shadow: true,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.08, y: 0.585, w: 0.6,
+        text: '21.1', size: 16, weight: 800, fill: '#FFFFFF', letterSpacing: -3, shadow: true,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.44, y: 0.655, w: 0.2,
+        text: 'KM', size: 4, weight: 800, fill: '#FC4C02', uppercase: true, letterSpacing: 4,
+      },
+      rule(0.08, 0.735, 0.84, 0.0025, 'rgba(255,255,255,0.28)'),
+      {
+        type: 'text', layer: 'front', x: 0.08, y: 0.765, w: 0.26,
+        text: '4:38 /km', size: 3.6, weight: 800, fill: '#FFFFFF',
+      },
+      {
+        type: 'text', layer: 'front', x: 0.37, y: 0.765, w: 0.26,
+        text: '1:37:42', size: 3.6, weight: 800, fill: '#FFFFFF',
+      },
+      {
+        type: 'text', layer: 'front', x: 0.66, y: 0.765, w: 0.28,
+        text: '286 m', size: 3.6, weight: 800, fill: '#FFFFFF',
+      },
+      {
+        type: 'text', layer: 'front', x: 0.08, y: 0.8, w: 0.26,
+        text: 'Pace', size: 1.9, weight: 600, fill: 'rgba(255,255,255,0.62)',
+        uppercase: true, letterSpacing: 8,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.37, y: 0.8, w: 0.26,
+        text: 'Time', size: 1.9, weight: 600, fill: 'rgba(255,255,255,0.62)',
+        uppercase: true, letterSpacing: 8,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.66, y: 0.8, w: 0.28,
+        text: 'Elev gain', size: 1.9, weight: 600, fill: 'rgba(255,255,255,0.62)',
+        uppercase: true, letterSpacing: 8,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.08, y: 0.9, w: 0.84,
+        text: 'Sun 12 Apr · Jakarta', size: 1.9, weight: 500,
+        fill: 'rgba(255,255,255,0.6)', uppercase: true, letterSpacing: 10,
+      },
+    ],
+  },
+
+  {
+    id: 'run-stats',
+    name: 'Run Stats',
+    category: 'Running',
+    ratioId: '1:1',
+    blurb: 'Feed post with a stat line under the photo',
+    slots: [{ x: 0.06, y: 0.06, w: 0.88, h: 0.46, radius: 5 }],
+    elements: [
+      bg('#101214'),
+      { type: 'rect', layer: 'back', x: 0.05, y: 0.05, w: 0.9, h: 0.48, fill: '#1A1D21', radius: 5 },
+      { type: 'rect', layer: 'front', x: 0.09, y: 0.09, w: 0.24, h: 0.045, fill: '#FC4C02', radius: 100 },
+      {
+        type: 'text', layer: 'front', x: 0.09, y: 0.1015, w: 0.24,
+        text: 'Tempo run', size: 2.1, weight: 800, fill: '#FFFFFF',
+        align: 'center', uppercase: true, letterSpacing: 4,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.555, w: 0.5,
+        text: '12.4', size: 13, weight: 800, fill: '#FFFFFF', letterSpacing: -2,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.355, y: 0.65, w: 0.15,
+        text: 'km', size: 4.2, weight: 800, fill: '#FC4C02', uppercase: true, letterSpacing: 2,
+      },
+      rule(0.06, 0.73, 0.88, 0.002, 'rgba(255,255,255,0.14)'),
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.76, w: 0.27,
+        text: '5:02', size: 4, weight: 800, fill: '#FFFFFF',
+      },
+      {
+        type: 'text', layer: 'front', x: 0.37, y: 0.76, w: 0.27,
+        text: '1:02:18', size: 4, weight: 800, fill: '#FFFFFF',
+      },
+      {
+        type: 'text', layer: 'front', x: 0.68, y: 0.76, w: 0.26,
+        text: '142 bpm', size: 4, weight: 800, fill: '#FFFFFF',
+      },
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.84, w: 0.27,
+        text: 'Avg pace', size: 2, weight: 600, fill: '#7C838C', uppercase: true, letterSpacing: 8,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.37, y: 0.84, w: 0.27,
+        text: 'Moving time', size: 2, weight: 600, fill: '#7C838C', uppercase: true, letterSpacing: 8,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.68, y: 0.84, w: 0.26,
+        text: 'Avg HR', size: 2, weight: 600, fill: '#7C838C', uppercase: true, letterSpacing: 8,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.91, w: 0.88,
+        text: 'Pegasus 41 · 612 km on these', size: 2.1, weight: 500,
+        fill: '#5C636B', letterSpacing: 2,
+      },
+    ],
+  },
+
+  {
+    id: 'race-pb',
+    name: 'Race PB',
+    category: 'Running',
+    ratioId: '4:5',
+    blurb: 'Finish-line badge for a personal best',
+    slots: [{ ...circle(0.5, 0.3, 0.5, '4:5'), shape: 'ellipse' }],
+    elements: [
+      bg({ type: 'radial', cx: 0.5, cy: 0.28, radius: 0.82, stops: [[0, '#2A1206'], [1, '#120A05']] }),
+      { type: 'rect', layer: 'back', shape: 'ellipse', ...circle(0.5, 0.3, 0.54, '4:5'),
+        fill: { type: 'linear', angle: 135, stops: [[0, '#FC4C02'], [1, '#FFB03A']] } },
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.565, w: 0.88,
+        text: 'Personal best', size: 2.6, weight: 700, fill: '#FFB03A',
+        align: 'center', uppercase: true, letterSpacing: 16,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.61, w: 0.88,
+        text: '1:42:09', size: 10.5, weight: 800, fill: '#FFFFFF',
+        align: 'center', letterSpacing: -1,
+      },
+      rule(0.44, 0.775, 0.12, 0.004, '#FC4C02'),
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.8, w: 0.88,
+        text: 'Jakarta Half Marathon', size: 3.6, weight: 700, fill: '#F5EDE6', align: 'center',
+      },
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.875, w: 0.88,
+        text: '21.1 km · 4:51 /km · 2nd AG', size: 2.3, weight: 500, fill: '#A8958A',
+        align: 'center', uppercase: true, letterSpacing: 6,
+      },
+    ],
+  },
+
+  {
+    id: 'weekly-run',
+    name: 'Weekly Mileage',
+    category: 'Running',
+    ratioId: '4:5',
+    blurb: 'Training week summed up in four stats',
+    slots: [{ x: 0.06, y: 0.06, w: 0.88, h: 0.34, radius: 5 }],
+    elements: [
+      bg('#0E1013'),
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.44, w: 0.5,
+        text: 'This week', size: 2.4, weight: 700, fill: '#FC4C02',
+        uppercase: true, letterSpacing: 12,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.485, w: 0.6,
+        text: '48.6', size: 11, weight: 800, fill: '#FFFFFF', letterSpacing: -2,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.315, y: 0.548, w: 0.15,
+        text: 'km', size: 3.8, weight: 800, fill: '#FC4C02', uppercase: true, letterSpacing: 2,
+      },
+      rule(0.06, 0.635, 0.88, 0.002, 'rgba(255,255,255,0.14)'),
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.665, w: 0.42,
+        text: '5', size: 4.6, weight: 800, fill: '#FFFFFF',
+      },
+      {
+        type: 'text', layer: 'front', x: 0.52, y: 0.665, w: 0.42,
+        text: '4:03:18', size: 4.6, weight: 800, fill: '#FFFFFF',
+      },
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.725, w: 0.42,
+        text: 'Runs', size: 2.1, weight: 600, fill: '#79818B', uppercase: true, letterSpacing: 8,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.52, y: 0.725, w: 0.42,
+        text: 'Time', size: 2.1, weight: 600, fill: '#79818B', uppercase: true, letterSpacing: 8,
+      },
+      rule(0.06, 0.772, 0.88, 0.0015, 'rgba(255,255,255,0.08)'),
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.8, w: 0.42,
+        text: '4:52 /km', size: 4.6, weight: 800, fill: '#FFFFFF',
+      },
+      {
+        type: 'text', layer: 'front', x: 0.52, y: 0.8, w: 0.42,
+        text: '612 m', size: 4.6, weight: 800, fill: '#FFFFFF',
+      },
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.86, w: 0.42,
+        text: 'Avg pace', size: 2.1, weight: 600, fill: '#79818B', uppercase: true, letterSpacing: 8,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.52, y: 0.86, w: 0.42,
+        text: 'Elev gain', size: 2.1, weight: 600, fill: '#79818B', uppercase: true, letterSpacing: 8,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.06, y: 0.93, w: 0.88,
+        text: '4 — 10 Aug · Base build', size: 2.1, weight: 500, fill: '#5C636B', letterSpacing: 2,
+      },
+    ],
+  },
+
+  {
+    id: 'run-club',
+    name: 'Run Club',
+    category: 'Running',
+    ratioId: '16:9',
+    blurb: 'Wide banner for a group session',
+    slots: [
+      { x: 0.52, y: 0.1, w: 0.22, h: 0.8, radius: 4 },
+      { x: 0.76, y: 0.1, w: 0.2, h: 0.8, radius: 4 },
+    ],
+    elements: [
+      bg({ type: 'linear', angle: 120, stops: [[0, '#141414'], [1, '#2A1206']] }),
+      { type: 'rect', layer: 'front', x: 0.045, y: 0.13, w: 0.15, h: 0.1, fill: '#FC4C02', radius: 100 },
+      {
+        type: 'text', layer: 'front', x: 0.045, y: 0.158, w: 0.15,
+        text: 'Run club', size: 1.8, weight: 800, fill: '#FFFFFF',
+        align: 'center', uppercase: true, letterSpacing: 5,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.045, y: 0.3, w: 0.44,
+        text: 'Tuesday\nTempo', size: 6.4, weight: 800, lineHeight: 1.0,
+        fill: '#FFFFFF', letterSpacing: -1,
+      },
+      rule(0.045, 0.6, 0.06, 0.014, '#FC4C02'),
+      {
+        type: 'text', layer: 'front', x: 0.045, y: 0.66, w: 0.44,
+        text: '6:30 pm · Senayan track', size: 2.1, weight: 600, fill: '#FFB03A',
+        uppercase: true, letterSpacing: 6,
+      },
+      {
+        type: 'text', layer: 'front', x: 0.045, y: 0.75, w: 0.45,
+        text: 'All paces welcome · 5K and 10K loops', size: 1.9, weight: 500,
+        lineHeight: 1.4, fill: '#9A928C',
+      },
+    ],
+  },
 ];
 
 export const DESIGNS = RAW_DESIGNS.map((d) => ({
